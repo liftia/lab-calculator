@@ -49,6 +49,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="MyTextBox.cs" />
+    <Compile Include="Operation.cs" />
+    <Compile Include="IPaperTrail.cs" />
+    <Compile Include="PaperTrail.cs" />
+    <Compile Include="ICalculator.cs" />
+    <Compile Include="CalculatorEngine.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
