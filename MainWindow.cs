@@ -1,39 +1,67 @@
-﻿// // Copyright (c) Microsoft. All rights reserved.
-// // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using CalculatorDemo.Engine;
 
 namespace CalculatorDemo
 {
     /// <summary>
-    ///     Interaction logic for MainWindow.xaml
+    /// Interaction logic for MainWindow.xaml.
+    /// This class handles UI events and coordinates with the business logic layer (Engine).
     /// </summary>
     public sealed partial class MainWindow : Window
     {
-        private static PaperTrail _paper;
+        /// <summary>
+        /// Calculator engine for pure arithmetic operations.
+        /// </summary>
+        private readonly ICalculator _calculator;
+
+        /// <summary>
+        /// Paper trail for tracking calculation history.
+        /// </summary>
+        private readonly IPaperTrail _paper;
+
+        /// <summary>
+        /// Current pending operation.
+        /// </summary>
         private Operation _lastOper;
+
+        /// <summary>
+        /// Previous operand value for binary operations.
+        /// </summary>
         private string _lastVal;
+
+        /// <summary>
+        /// Memory storage value.
+        /// </summary>
         private string _memVal;
 
+        /// <summary>
+        /// Initializes a new instance of the MainWindow class.
+        /// Sets up the calculator engine and paper trail.
+        /// </summary>
         public MainWindow()
         {
             InitializeComponent();
-            _paper = new PaperTrail(this);
+            _calculator = new CalculatorEngine();
+            _paper = new PaperTrail();
             ProcessKey('0');
             EraseDisplay = true;
         }
 
         /// <summary>
-        ///     Flag to erase or just add to current display flag
+        /// Gets or sets a value indicating whether to erase the display on next digit input.
         /// </summary>
         private bool EraseDisplay { get; set; }
 
         /// <summary>
-        ///     Get/Set Memory cell value
+        /// Gets or sets the memory cell value.
+        /// Handles conversion between string storage and double values.
         /// </summary>
         private double Memory
         {
@@ -46,7 +74,10 @@ namespace CalculatorDemo
             set { _memVal = value.ToString(CultureInfo.InvariantCulture); }
         }
 
-        //Lats value entered
+        /// <summary>
+        /// Gets or sets the last value entered (previous operand for binary operations).
+        /// Returns "0" if empty.
+        /// </summary>
         private string LastValue
         {
             get
@@ -58,16 +89,22 @@ namespace CalculatorDemo
             set { _lastVal = value; }
         }
 
-        //The current Calculator display
+        /// <summary>
+        /// Gets or sets the current calculator display value.
+        /// </summary>
         private string Display { get; set; }
-        // Sample event handler:  
-        private void OnWindowKeyDown(object sender, TextCompositionEventArgs /*System.Windows.Input.KeyEventArgs*/ e)
+
+        /// <summary>
+        /// Handles keyboard input for the calculator.
+        /// Routes digits to ProcessKey and operators to ProcessOperation.
+        /// </summary>
+        private void OnWindowKeyDown(object sender, TextCompositionEventArgs e)
         {
             var s = e.Text;
             var c = (s.ToCharArray())[0];
             e.Handled = true;
 
-            if ((c >= '0' && c <= '9') || c == '.' || c == '\b') // '\b' is backspace
+            if ((c >= '0' && c <= '9') || c == '.' || c == '\b')
             {
                 ProcessKey(c);
                 return;
@@ -84,7 +121,7 @@ namespace CalculatorDemo
                     ProcessOperation("BMultiply");
                     break;
                 case '/':
-                    ProcessOperation("BDevide");
+                    ProcessOperation("BDivide");
                     break;
                 case '%':
                     ProcessOperation("BPercent");
@@ -95,15 +132,21 @@ namespace CalculatorDemo
             }
         }
 
+        /// <summary>
+        /// Handles digit button clicks.
+        /// Extracts the button content and processes it as a digit.
+        /// </summary>
         private void DigitBtn_Click(object sender, RoutedEventArgs e)
         {
-            var s = ((Button) sender).Content.ToString();
-
-            //char[] ids = ((Button)sender).ID.ToCharArray();
+            var s = ((Button)sender).Content.ToString();
             var ids = s.ToCharArray();
             ProcessKey(ids[0]);
         }
 
+        /// <summary>
+        /// Processes a digit or decimal point input.
+        /// Clears display if EraseDisplay flag is set.
+        /// </summary>
         private void ProcessKey(char c)
         {
             if (EraseDisplay)
@@ -114,12 +157,16 @@ namespace CalculatorDemo
             AddToDisplay(c);
         }
 
+        /// <summary>
+        /// Processes an operation button click.
+        /// Handles binary operators, unary operators, memory operations, and clear functions.
+        /// </summary>
         private void ProcessOperation(string s)
         {
             var d = 0.0;
             switch (s)
             {
-                case "BPM":
+                case "BPM": // +/- (negate)
                     _lastOper = Operation.Negate;
                     LastValue = Display;
                     CalcResults();
@@ -127,23 +174,21 @@ namespace CalculatorDemo
                     EraseDisplay = true;
                     _lastOper = Operation.None;
                     break;
-                case "BDevide":
-
-                    if (EraseDisplay) //stil wait for a digit...
+                case "BDevide": // Legacy name for divide (typo in original XAML)
+                case "BDivide":
+                    if (EraseDisplay)
                     {
-                        //stil wait for a digit...
-                        _lastOper = Operation.Devide;
+                        _lastOper = Operation.Divide;
                         break;
                     }
                     CalcResults();
-                    _lastOper = Operation.Devide;
+                    _lastOper = Operation.Divide;
                     LastValue = Display;
                     EraseDisplay = true;
                     break;
                 case "BMultiply":
-                    if (EraseDisplay) //stil wait for a digit...
+                    if (EraseDisplay)
                     {
-                        //stil wait for a digit...
                         _lastOper = Operation.Multiply;
                         break;
                     }
@@ -153,9 +198,8 @@ namespace CalculatorDemo
                     EraseDisplay = true;
                     break;
                 case "BMinus":
-                    if (EraseDisplay) //stil wait for a digit...
+                    if (EraseDisplay)
                     {
-                        //stil wait for a digit...
                         _lastOper = Operation.Subtract;
                         break;
                     }
@@ -167,7 +211,6 @@ namespace CalculatorDemo
                 case "BPlus":
                     if (EraseDisplay)
                     {
-                        //stil wait for a digit...
                         _lastOper = Operation.Add;
                         break;
                     }
@@ -177,13 +220,12 @@ namespace CalculatorDemo
                     EraseDisplay = true;
                     break;
                 case "BEqual":
-                    if (EraseDisplay) //stil wait for a digit...
+                    if (EraseDisplay)
                         break;
                     CalcResults();
                     EraseDisplay = true;
                     _lastOper = Operation.None;
                     LastValue = Display;
-                    //val = Display;
                     break;
                 case "BSqrt":
                     _lastOper = Operation.Sqrt;
@@ -194,9 +236,8 @@ namespace CalculatorDemo
                     _lastOper = Operation.None;
                     break;
                 case "BPercent":
-                    if (EraseDisplay) //stil wait for a digit...
+                    if (EraseDisplay)
                     {
-                        //stil wait for a digit...
                         _lastOper = Operation.Percent;
                         break;
                     }
@@ -204,9 +245,8 @@ namespace CalculatorDemo
                     _lastOper = Operation.Percent;
                     LastValue = Display;
                     EraseDisplay = true;
-                    //LastOper = Operation.None;
                     break;
-                case "BOneOver":
+                case "BOneOver": // 1/x
                     _lastOper = Operation.OneX;
                     LastValue = Display;
                     CalcResults();
@@ -214,13 +254,14 @@ namespace CalculatorDemo
                     EraseDisplay = true;
                     _lastOper = Operation.None;
                     break;
-                case "BC": //clear All
+                case "BC": // Clear All
                     _lastOper = Operation.None;
                     Display = LastValue = string.Empty;
                     _paper.Clear();
+                    PaperBox.Text = _paper.TrailText;
                     UpdateDisplay();
                     break;
-                case "BCE": //clear entry
+                case "BCE": // Clear Entry
                     _lastOper = Operation.None;
                     Display = LastValue;
                     UpdateDisplay();
@@ -235,9 +276,8 @@ namespace CalculatorDemo
                     EraseDisplay = true;
                     break;
                 case "BMemRecall":
-                    Display = /*val =*/ Memory.ToString(CultureInfo.InvariantCulture);
+                    Display = Memory.ToString(CultureInfo.InvariantCulture);
                     UpdateDisplay();
-                    //if (LastOper != Operation.None)   //using MR is like entring a digit
                     EraseDisplay = false;
                     break;
                 case "BMemPlus":
@@ -249,85 +289,88 @@ namespace CalculatorDemo
             }
         }
 
+        /// <summary>
+        /// Handles operator button clicks.
+        /// Routes to ProcessOperation with the button name.
+        /// </summary>
         private void OperBtn_Click(object sender, RoutedEventArgs e)
         {
-            ProcessOperation(((Button) sender).Name);
+            ProcessOperation(((Button)sender).Name);
         }
 
+        /// <summary>
+        /// Performs the calculation using the calculator engine.
+        /// Delegates arithmetic operations to the engine and updates the paper trail.
+        /// </summary>
         private double Calc(Operation lastOper)
         {
             var d = 0.0;
-
+            var lastVal = Convert.ToDouble(LastValue);
+            var displayVal = Convert.ToDouble(Display);
 
             try
             {
                 switch (lastOper)
                 {
-                    case Operation.Devide:
+                    case Operation.Divide:
                         _paper.AddArguments(LastValue + " / " + Display);
-                        d = (Convert.ToDouble(LastValue)/Convert.ToDouble(Display));
-                        CheckResult(d);
-                        _paper.AddResult(d.ToString(CultureInfo.InvariantCulture));
+                        d = _calculator.Divide(lastVal, displayVal);
                         break;
                     case Operation.Add:
                         _paper.AddArguments(LastValue + " + " + Display);
-                        d = Convert.ToDouble(LastValue) + Convert.ToDouble(Display);
-                        CheckResult(d);
-                        _paper.AddResult(d.ToString(CultureInfo.InvariantCulture));
+                        d = _calculator.Add(lastVal, displayVal);
                         break;
                     case Operation.Multiply:
                         _paper.AddArguments(LastValue + " * " + Display);
-                        d = Convert.ToDouble(LastValue)*Convert.ToDouble(Display);
-                        CheckResult(d);
-                        _paper.AddResult(d.ToString(CultureInfo.InvariantCulture));
+                        d = _calculator.Multiply(lastVal, displayVal);
                         break;
                     case Operation.Percent:
-                        //Note: this is different (but make more sense) then Windows calculator
                         _paper.AddArguments(LastValue + " % " + Display);
-                        d = (Convert.ToDouble(LastValue)*Convert.ToDouble(Display))/100.0F;
-                        CheckResult(d);
-                        _paper.AddResult(d.ToString(CultureInfo.InvariantCulture));
+                        d = _calculator.Percent(lastVal, displayVal);
                         break;
                     case Operation.Subtract:
                         _paper.AddArguments(LastValue + " - " + Display);
-                        d = Convert.ToDouble(LastValue) - Convert.ToDouble(Display);
-                        CheckResult(d);
-                        _paper.AddResult(d.ToString(CultureInfo.InvariantCulture));
+                        d = _calculator.Subtract(lastVal, displayVal);
                         break;
                     case Operation.Sqrt:
                         _paper.AddArguments("Sqrt( " + LastValue + " )");
-                        d = Math.Sqrt(Convert.ToDouble(LastValue));
-                        CheckResult(d);
-                        _paper.AddResult(d.ToString(CultureInfo.InvariantCulture));
+                        d = _calculator.SquareRoot(lastVal);
                         break;
                     case Operation.OneX:
                         _paper.AddArguments("1 / " + LastValue);
-                        d = 1.0F/Convert.ToDouble(LastValue);
-                        CheckResult(d);
-                        _paper.AddResult(d.ToString(CultureInfo.InvariantCulture));
+                        d = _calculator.Reciprocal(lastVal);
                         break;
                     case Operation.Negate:
-                        d = Convert.ToDouble(LastValue)*(-1.0F);
+                        d = _calculator.Negate(lastVal);
                         break;
+                }
+
+                // Validate result using engine's validation
+                if (!_calculator.IsValidResult(d))
+                    throw new Exception("Illegal value");
+
+                // Update paper trail for non-negate operations
+                if (lastOper != Operation.Negate)
+                {
+                    _paper.AddResult(d.ToString(CultureInfo.InvariantCulture));
+                    PaperBox.Text = _paper.TrailText;
                 }
             }
             catch
             {
                 d = 0;
-                var parent = (Window) MyPanel.Parent;
+                var parent = (Window)MyPanel.Parent;
                 _paper.AddResult("Error");
-                MessageBox.Show(parent, "Operation cannot be perfomed", parent.Title);
+                PaperBox.Text = _paper.TrailText;
+                MessageBox.Show(parent, "Operation cannot be performed", parent.Title);
             }
 
             return d;
         }
 
-        private void CheckResult(double d)
-        {
-            if (double.IsNegativeInfinity(d) || double.IsPositiveInfinity(d) || double.IsNaN(d))
-                throw new Exception("Illegal value");
-        }
-
+        /// <summary>
+        /// Updates the memory display indicator.
+        /// </summary>
         private void DisplayMemory()
         {
             if (_memVal != string.Empty)
@@ -336,6 +379,10 @@ namespace CalculatorDemo
                 BMemBox.Text = "Memory: [empty]";
         }
 
+        /// <summary>
+        /// Orchestrates a calculation if there is a pending operation.
+        /// Updates the display with the result.
+        /// </summary>
         private void CalcResults()
         {
             double d;
@@ -348,16 +395,24 @@ namespace CalculatorDemo
             UpdateDisplay();
         }
 
+        /// <summary>
+        /// Updates the display text box.
+        /// Shows "0" if display is empty.
+        /// </summary>
         private void UpdateDisplay()
         {
             DisplayBox.Text = Display == string.Empty ? "0" : Display;
         }
 
+        /// <summary>
+        /// Adds a character to the display.
+        /// Handles digits, decimal point, and backspace.
+        /// </summary>
         private void AddToDisplay(char c)
         {
             if (c == '.')
             {
-                if (Display.IndexOf('.', 0) >= 0) //already exists
+                if (Display.IndexOf('.', 0) >= 0)
                     return;
                 Display = Display + c;
             }
@@ -367,14 +422,14 @@ namespace CalculatorDemo
                 {
                     Display = Display + c;
                 }
-                else if (c == '\b') //backspace ?
+                else if (c == '\b')
                 {
                     if (Display.Length <= 1)
                         Display = string.Empty;
                     else
                     {
                         var i = Display.Length;
-                        Display = Display.Remove(i - 1, 1); //remove last char 
+                        Display = Display.Remove(i - 1, 1);
                     }
                 }
             }
@@ -382,67 +437,39 @@ namespace CalculatorDemo
             UpdateDisplay();
         }
 
+        /// <summary>
+        /// Handles the About menu item click.
+        /// </summary>
         private void OnMenuAbout(object sender, RoutedEventArgs e)
         {
-            var parent = (Window) MyPanel.Parent;
+            var parent = (Window)MyPanel.Parent;
             MessageBox.Show(parent, parent.Title + " - By Jossef Goldberg ", parent.Title, MessageBoxButton.OK,
                 MessageBoxImage.Information);
         }
 
+        /// <summary>
+        /// Handles the Exit menu item click.
+        /// </summary>
         private void OnMenuExit(object sender, RoutedEventArgs e)
         {
             Close();
         }
 
+        /// <summary>
+        /// Handles the Standard menu item click.
+        /// </summary>
         private void OnMenuStandard(object sender, RoutedEventArgs e)
         {
-            //((MenuItem)ScientificMenu).IsChecked = false;
-            StandardMenu.IsChecked = true; //for now always Standard
+            StandardMenu.IsChecked = true;
         }
 
+        /// <summary>
+        /// Handles the Scientific menu item click.
+        /// Currently not implemented.
+        /// </summary>
         private void OnMenuScientific(object sender, RoutedEventArgs e)
         {
-            //((MenuItem)StandardMenu).IsChecked = false; 
-        }
-
-        private enum Operation
-        {
-            None,
-            Devide,
-            Multiply,
-            Subtract,
-            Add,
-            Percent,
-            Sqrt,
-            OneX,
-            Negate
-        }
-
-        private class PaperTrail
-        {
-            private readonly MainWindow _window;
-            private string _args;
-
-            public PaperTrail(MainWindow window)
-            {
-                _window = window;
-            }
-
-            public void AddArguments(string a)
-            {
-                _args = a;
-            }
-
-            public void AddResult(string r)
-            {
-                _window.PaperBox.Text += _args + " = " + r + "\n";
-            }
-
-            public void Clear()
-            {
-                _window.PaperBox.Text = string.Empty;
-                _args = string.Empty;
-            }
+            // Scientific mode not implemented
         }
     }
 }
